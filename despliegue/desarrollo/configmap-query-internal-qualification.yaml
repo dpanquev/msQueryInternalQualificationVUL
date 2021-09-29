@@ -1,0 +1,30 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: configmap-query-internal-qualification
+data:
+  spring.application.name: query-internal-qualification
+  server.port: "8080"
+  spring.datasource.sql-script-encoding: UTF-8
+  spring.jpa.properties.hibernate.dialect: org.hibernate.dialect.PostgreSQLDialect
+  spring.datasource.driver-class-name: org.postgresql.Driver
+  spring.datasource.url: jdbc:postgresql://10.86.49.4:32491/QUALIFICATIONDB
+  spring.jpa.generate-ddl: "false"
+  spring.jpa.hibernate.ddl-auto: none
+  spring.datasource.hikari.maximum-pool-size: "15"
+  spring.datasource.hikari.idleTimeout: "60000"
+  spring.datasource.hikari.connectionTimeout: "30000"
+  spring.datasource.hikari.maxLifetime: "180000"
+  management.endpoints.web.base-path: /telefonica/customer/v1/queryQualification
+  management.endpoint.shutdown.enabled: "true"
+  management.endpoint.health.show-details: always
+  management.endpoints.web.exposure.include: "*"
+  logging.level.org.springframework.web: INFO
+  logging.level.org.springframework.ws.client.MessageTracing.sent: DEBUG
+  logging.level.org.springframework.ws.server.MessageTracing.sent: TRACE
+  logging.level.org.springframework.ws.client.MessageTracing.received: TRACE
+  logging.level.org.springframework.ws.server.MessageTracing.received: TRACE
+  logging.level.root: INFO
+  logging.level.com.baeldung: TRACE
+  server.session.timeout: "90000"
+  server.connection-timeout: "90000"

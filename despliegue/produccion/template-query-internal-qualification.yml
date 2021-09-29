@@ -1,0 +1,136 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: template-query-internal-qualification
+  annotations:
+    description: "Template para generacion del servicio de query internal qualification de Telefonica"
+    tags: "internal-qualification,fuse"
+objects:
+  - kind: ConfigMap
+    apiVersion: v1
+    metadata:
+      labels:
+        app: query-internal-qualification
+      name: configmap-query-internal-qualification
+      namespace: internal-qualification
+    data:
+      spring.application.name: query-internal-qualification
+      server.port: "8080"
+      spring.datasource.sql-script-encoding: UTF-8
+      spring.jpa.properties.hibernate.dialect: org.hibernate.dialect.PostgreSQLDialect
+      spring.datasource.driver-class-name: org.postgresql.Driver
+      spring.datasource.url: jdbc:postgresql://postgresql-12.mi-movistar.svc.cluster.local:5432/QUALIFICATIONDB
+      spring.jpa.generate-ddl: "false"
+      spring.jpa.hibernate.ddl-auto: none
+      spring.datasource.hikari.connectionTimeout: "20000"
+      spring.datasource.hikari.maximumPoolSize: "10"
+      management.endpoints.web.base-path: /telefonica/customer/v1/queryQualification
+      management.endpoint.shutdown.enabled: "true"
+      management.endpoint.health.show-details: always
+      management.endpoints.web.exposure.include: "*"
+      logging.level.org.springframework.web: INFO
+      logging.level.org.springframework.ws.client.MessageTracing.sent: DEBUG
+      logging.level.org.springframework.ws.server.MessageTracing.sent: TRACE
+      logging.level.org.springframework.ws.client.MessageTracing.received: TRACE
+      logging.level.org.springframework.ws.server.MessageTracing.received: TRACE
+      logging.level.root: INFO
+      logging.level.com.baeldung: TRACE
+  - kind: Secret
+    apiVersion: v1
+    metadata:
+      labels:
+        app: query-internal-qualification
+      name: secret-query-internal-qualification
+      namespace: internal-qualification
+    type: Opaque
+    data:
+      spring.datasource.username: aW50LXF1YWwtdXNlcg==
+      spring.datasource.password: WElRUXlTYTA=
+  - apiVersion: apps.openshift.io/v1
+    kind: DeploymentConfig
+    metadata:
+      labels:
+        app: query-internal-qualification
+      name: query-internal-qualification
+    spec:
+      replicas: 1
+      selector:
+        app: query-internal-qualification
+        deploymentconfig: query-internal-qualification
+      template:
+        metadata:
+          annotations:
+            sidecar.istio.io/inject: "true"
+          labels:
+            app: query-internal-qualification
+            deploymentconfig: query-internal-qualification
+        spec:
+          containers:
+            - name: query-internal-qualification
+              image: image-registry.openshift-image-registry.svc:5000/internal-qualification/query-internal-qualification:latest
+              env:
+                - name: SPRING_APPLICATION_JSON
+                  value: '{"server":{"undertow":{"io-threads":10, "worker-threads":80 }}}'
+                - name: JAVA_OPTIONS
+                  value: '-Xms640m -Xmx1024m -Dfile.encoding=ISO-8859-1'
+              envFrom:
+                - configMapRef:
+                    name: configmap-query-internal-qualification
+                - secretRef:
+                    name: secret-query-internal-qualification
+              resources:
+                limits:
+                  cpu: 800m
+                  memory: 2Gi
+                requests:
+                  cpu: 800m
+                  memory: 2Gi
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app: query-internal-qualification
+        app.kubernetes.io/component: query-internal-qualification
+        app.kubernetes.io/instance: query-internal-qualification
+      name: query-internal-qualification
+      namespace: internal-qualification
+    spec:
+      ports:
+        - name: http-web
+          port: 8080
+          protocol: TCP
+          targetPort: 8080
+      selector:
+        deploymentconfig: query-internal-qualification
+      sessionAffinity: None
+      type: ClusterIP
+  - apiVersion: autoscaling/v2beta2
+    kind: HorizontalPodAutoscaler
+    metadata:
+      labels:
+        app: query-internal-qualification
+      name: hpa-query-internal-qualification
+      namespace: internal-qualification
+    spec:
+      scaleTargetRef:
+        apiVersion: apps.openshift.io/v1
+        kind: DeploymentConfig
+        name: query-internal-qualification
+      minReplicas: 3
+      maxReplicas: 5
+      metrics:
+        - type: Resource
+          resource:
+            name: cpu
+            target:
+              averageUtilization: 80
+              type: Utilization
+  - apiVersion: networking.istio.io/v1alpha3
+    kind: DestinationRule
+    metadata:
+      name: query-internal-qualification-mtls
+    spec:
+      host: query-internal-qualification
+      trafficPolicy:
+        tls:
+          mode: ISTIO_MUTUAL
